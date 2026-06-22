@@ -12,7 +12,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.serialization.json.Json
-import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MediaType
 import retrofit2.Retrofit
 import javax.inject.Singleton
 
@@ -30,7 +30,7 @@ object AppModule {
     @Provides
     @Singleton
     fun provideRetrofit(json: Json): Retrofit {
-        val contentType = "application/json".toMediaType()
+        val contentType = MediaType.get("application/json")
         return Retrofit.Builder()
             .baseUrl("https://v2.jokeapi.dev/")
             .addConverterFactory(json.asConverterFactory(contentType))
