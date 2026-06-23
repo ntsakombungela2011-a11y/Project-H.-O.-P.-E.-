@@ -1,5 +1,7 @@
 package com.example.darkhumor.ui.main
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.hardware.Sensor
@@ -7,6 +9,7 @@ import android.hardware.SensorManager
 import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Share
@@ -21,6 +24,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.darkhumor.domain.model.Joke
 import com.example.darkhumor.util.ShakeDetector
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun MainScreen(
@@ -29,6 +33,8 @@ fun MainScreen(
     val uiState by viewModel.uiState.collectAsState()
     val isFavorite by viewModel.isFavorite.collectAsState()
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     val sensorManager = remember { context.getSystemService(Context.SENSOR_SERVICE) as SensorManager }
     val accelerometer = remember { sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) }
@@ -41,39 +47,50 @@ fun MainScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        when (val state = uiState) {
-            is MainUiState.Empty -> {
-                Button(onClick = { viewModel.getJoke() }) {
-                    Text("Get Joke")
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            when (val state = uiState) {
+                is MainUiState.Empty -> {
+                    Button(onClick = { viewModel.getJoke() }) {
+                        Text("Get Joke")
+                    }
                 }
-            }
-            is MainUiState.Loading -> {
-                CircularProgressIndicator()
-            }
-            is MainUiState.Success -> {
-                JokeDisplay(
-                    joke = state.joke,
-                    isFavorite = isFavorite,
-                    onToggleFavorite = { viewModel.toggleFavorite(state.joke) },
-                    onShare = { shareJoke(context, state.joke) }
-                )
-                Spacer(modifier = Modifier.height(32.dp))
-                Button(onClick = { viewModel.getJoke() }) {
-                    Text("Get Another Joke")
+                is MainUiState.Loading -> {
+                    CircularProgressIndicator()
                 }
-            }
-            is MainUiState.Error -> {
-                Text(text = state.message, color = MaterialTheme.colorScheme.error)
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(onClick = { viewModel.getJoke() }) {
-                    Text("Retry")
+                is MainUiState.Success -> {
+                    JokeDisplay(
+                        joke = state.joke,
+                        isFavorite = isFavorite,
+                        onToggleFavorite = { viewModel.toggleFavorite(state.joke) },
+                        onShare = { shareJoke(context, state.joke) },
+                        onCopy = {
+                            copyJokeToClipboard(context, state.joke)
+                            scope.launch {
+                                snackbarHostState.showSnackbar("Copied to clipboard")
+                            }
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(32.dp))
+                    Button(onClick = { viewModel.getJoke() }) {
+                        Text("Get Another Joke")
+                    }
+                }
+                is MainUiState.Error -> {
+                    Text(text = state.message, color = MaterialTheme.colorScheme.error)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(onClick = { viewModel.getJoke() }) {
+                        Text("Retry")
+                    }
                 }
             }
         }
@@ -85,7 +102,8 @@ fun JokeDisplay(
     joke: Joke,
     isFavorite: Boolean,
     onToggleFavorite: () -> Unit,
-    onShare: () -> Unit
+    onShare: () -> Unit,
+    onCopy: () -> Unit
 ) {
     var showDelivery by remember(joke.id) { mutableStateOf(false) }
 
@@ -139,6 +157,9 @@ fun JokeDisplay(
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
                 horizontalArrangement = Arrangement.End
             ) {
+                IconButton(onClick = onCopy) {
+                    Icon(imageVector = Icons.Default.ContentCopy, contentDescription = "Copy")
+                }
                 IconButton(onClick = onToggleFavorite) {
                     Icon(
                         imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
@@ -152,6 +173,17 @@ fun JokeDisplay(
             }
         }
     }
+}
+
+private fun copyJokeToClipboard(context: Context, joke: Joke) {
+    val text = if (joke.type == "single") {
+        joke.joke ?: ""
+    } else {
+        "${joke.setup}\n\n${joke.delivery}"
+    }
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    val clip = ClipData.newPlainText("joke", text)
+    clipboard.setPrimaryClip(clip)
 }
 
 private fun shareJoke(context: Context, joke: Joke) {

@@ -21,15 +21,24 @@ import androidx.navigation.compose.rememberNavController
 import com.example.darkhumor.ui.favorites.FavoritesScreen
 import com.example.darkhumor.ui.main.MainScreen
 import com.example.darkhumor.ui.settings.SettingsScreen
+import com.example.darkhumor.ui.theme.AppTheme
 import com.example.darkhumor.ui.theme.DarkHumorTheme
+import com.example.darkhumor.ui.theme.ThemeManager
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var themeManager: ThemeManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            DarkHumorTheme {
+            val currentTheme by themeManager.currentTheme.collectAsState(initial = AppTheme.PURPLE)
+            
+            DarkHumorTheme(appTheme = currentTheme) {
                 val navController = rememberNavController()
                 val items = listOf(
                     Screen.Main,

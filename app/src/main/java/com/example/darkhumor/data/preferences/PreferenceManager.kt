@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -21,7 +22,8 @@ data class UserPreferences(
     val political: Boolean = false,
     val racist: Boolean = false,
     val sexist: Boolean = false,
-    val explicit: Boolean = false
+    val explicit: Boolean = false,
+    val selectedCategories: Set<String> = setOf("Dark")
 ) {
     fun toBlacklistString(): String? {
         val flags = mutableListOf<String>()
@@ -32,6 +34,10 @@ data class UserPreferences(
         if (sexist) flags.add("sexist")
         if (explicit) flags.add("explicit")
         return if (flags.isEmpty()) null else flags.joinToString(",")
+    }
+
+    fun toCategoriesString(): String {
+        return if (selectedCategories.isEmpty()) "Dark" else selectedCategories.joinToString(",")
     }
 }
 
@@ -49,6 +55,7 @@ class PreferenceManager @Inject constructor(@ApplicationContext context: Context
         val RACIST = booleanPreferencesKey("racist")
         val SEXIST = booleanPreferencesKey("sexist")
         val EXPLICIT = booleanPreferencesKey("explicit")
+        val SELECTED_CATEGORIES = stringSetPreferencesKey("selected_categories")
     }
 
     val userPreferencesFlow: Flow<UserPreferences> = dataStore.data
@@ -66,7 +73,8 @@ class PreferenceManager @Inject constructor(@ApplicationContext context: Context
                 political = preferences[PreferencesKeys.POLITICAL] ?: false,
                 racist = preferences[PreferencesKeys.RACIST] ?: false,
                 sexist = preferences[PreferencesKeys.SEXIST] ?: false,
-                explicit = preferences[PreferencesKeys.EXPLICIT] ?: false
+                explicit = preferences[PreferencesKeys.EXPLICIT] ?: false,
+                selectedCategories = preferences[PreferencesKeys.SELECTED_CATEGORIES] ?: setOf("Dark")
             )
         }
 
@@ -92,5 +100,23 @@ class PreferenceManager @Inject constructor(@ApplicationContext context: Context
 
     suspend fun updateExplicit(value: Boolean) {
         dataStore.edit { preferences -> preferences[PreferencesKeys.EXPLICIT] = value }
+    }
+
+    suspend fun updateSelectedCategories(categories: Set<String>) {
+        dataStore.edit { preferences ->
+            preferences[PreferencesKeys.SELECTED_CATEGORIES] = categories.ifEmpty { setOf("Dark") }
+        }
+    }
+
+    suspend fun toggleCategory(category: String) {
+        dataStore.edit { preferences ->
+            val currentCategories = preferences[PreferencesKeys.SELECTED_CATEGORIES] ?: setOf("Dark")
+            val newCategories = if (currentCategories.contains(category)) {
+                (currentCategories - category).ifEmpty { setOf("Dark") }
+            } else {
+                currentCategories + category
+            }
+            preferences[PreferencesKeys.SELECTED_CATEGORIES] = newCategories
+        }
     }
 }

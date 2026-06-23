@@ -20,8 +20,10 @@ class JokeRepository @Inject constructor(
 ) {
     suspend fun getJoke(): Result<Joke> {
         return try {
-            val blacklist = preferenceManager.userPreferencesFlow.first().toBlacklistString()
-            val response = apiService.getJoke(blacklist)
+            val prefs = preferenceManager.userPreferencesFlow.first()
+            val blacklist = prefs.toBlacklistString()
+            val categories = prefs.toCategoriesString()
+            val response = apiService.getJoke(categories, blacklist)
             val joke = response.toJoke()
             if (joke != null) {
                 jokeDao.insertCachedJoke(CachedJokeEntity.fromJoke(joke))
