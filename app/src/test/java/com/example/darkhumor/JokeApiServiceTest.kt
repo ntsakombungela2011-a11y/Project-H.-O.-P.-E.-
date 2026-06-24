@@ -54,7 +54,7 @@ class JokeApiServiceTest {
             """.trimIndent())
         server.enqueue(mockResponse)
 
-        val response = apiService.getJoke()
+        val response = apiService.getJoke("Dark")
         assertEquals(false, response.error)
         assertEquals("single", response.type)
         assertEquals("Test Joke", response.joke)
@@ -85,7 +85,7 @@ class JokeApiServiceTest {
             """.trimIndent())
         server.enqueue(mockResponse)
 
-        val response = apiService.getJoke()
+        val response = apiService.getJoke("Dark")
         assertEquals("twopart", response.type)
         assertEquals("Setup", response.setup)
         assertEquals("Delivery", response.delivery)
